@@ -1,13 +1,16 @@
 import streamlit as st
 
-st.set_page_config(page_title="Grade & CGPA Calculator", layout="centered")
+st.set_page_config(page_title="GITAM Grade, SGPA & CGPA Calculator", layout="centered")
 
-st.title("🎓 Grade, SGPA & CGPA Calculator")
+st.title("🎓 GITAM Grade, SGPA & CGPA Calculator")
+st.caption("As per Evaluation Policy 2025–26 (Absolute grading based MVP)")
 
-st.markdown("Supports **Theory, Practical, and TP (70:30)** courses")
+# ------------------ GRADE FUNCTIONS ------------------
 
-# ---------- Grade Mapping ----------
-def grade_point(marks):
+def absolute_grade(marks, is_practical=False):
+    if is_practical and marks < 50:
+        return "F", 0
+
     if marks >= 90:
         return "O", 10
     elif marks >= 80:
@@ -18,12 +21,35 @@ def grade_point(marks):
         return "B+", 7
     elif marks >= 50:
         return "B", 6
-    elif marks >= 40:
+    elif marks >= 41:
         return "C", 5
+    elif marks >= 33:
+        return "P", 4
     else:
         return "F", 0
 
-# ---------- Course Input ----------
+
+def final_grade_from_wgp(wgp):
+    if wgp > 9:
+        return "O", 10
+    elif wgp > 8:
+        return "A+", 9
+    elif wgp > 7:
+        return "A", 8
+    elif wgp > 6:
+        return "B+", 7
+    elif wgp > 5:
+        return "B", 6
+    elif wgp > 4:
+        return "C", 5
+    elif wgp == 4:
+        return "P", 4
+    else:
+        return "F", 0
+
+
+# ------------------ COURSE INPUT ------------------
+
 num_courses = st.number_input("Number of Courses", min_value=1, step=1)
 
 total_credits = 0
@@ -32,41 +58,82 @@ total_weighted_points = 0
 st.divider()
 
 for i in range(int(num_courses)):
-    st.subheader(f"Course {i+1}")
+    st.subheader(f"📘 Course {i+1}")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        course_type = st.selectbox(
-            "Course Type",
-            ["Theory (T)", "Practical (P)", "TP (70% Theory + 30% Practical)"],
-            key=f"type{i}"
-        )
-    with col2:
-        credits = st.number_input("Credits", min_value=0.0, step=0.5, key=f"cred{i}")
+    course_type = st.selectbox(
+        "Course Type",
+        ["Theory (T)", "Practical (P)", "Combined (TP)"],
+        key=f"type{i}"
+    )
 
-    if course_type == "TP (70% Theory + 30% Practical)":
-        t_marks = st.number_input("Theory Marks", 0, 100, key=f"tm{i}")
-        p_marks = st.number_input("Practical Marks", 0, 100, key=f"pm{i}")
-        final_marks = 0.7 * t_marks + 0.3 * p_marks
+    credits = st.number_input("Credits", min_value=0.0, step=0.5, key=f"cred{i}")
+
+    course_gp = 0
+    course_grade = "F"
+
+    # ---------------- THEORY ----------------
+    if course_type == "Theory (T)":
+        s1 = st.number_input("Sessional 1 Marks (out of 30)", 0, 30, key=f"s1{i}")
+        s2 = st.number_input("Sessional 2 Marks (out of 45)", 0, 45, key=f"s2{i}")
+        le = st.number_input("Learning Engagement Marks (out of 25)", 0, 25, key=f"le{i}")
+
+        if (s1 + s2) < 25:
+            course_grade, course_gp = "F", 0
+        else:
+            _, gp_s1 = absolute_grade((s1 / 30) * 100)
+            _, gp_s2 = absolute_grade((s2 / 45) * 100)
+            _, gp_le = absolute_grade((le / 25) * 100)
+
+            wgp = (gp_s1 * 0.30) + (gp_s2 * 0.45) + (gp_le * 0.25)
+            course_grade, course_gp = final_grade_from_wgp(wgp)
+
+    # ---------------- PRACTICAL ----------------
+    elif course_type == "Practical (P)":
+        lab_marks = st.number_input("Practical / Lab Marks (out of 100)", 0, 100, key=f"lab{i}")
+        course_grade, course_gp = absolute_grade(lab_marks, is_practical=True)
+
+    # ---------------- COMBINED TP ----------------
     else:
-        final_marks = st.number_input("Marks", 0, 100, key=f"m{i}")
+        st.markdown("**Theory Component**")
+        s1 = st.number_input("Sessional 1 (30)", 0, 30, key=f"tp_s1{i}")
+        s2 = st.number_input("Sessional 2 (45)", 0, 45, key=f"tp_s2{i}")
+        le = st.number_input("Learning Engagement (25)", 0, 25, key=f"tp_le{i}")
 
-    grade, gp = grade_point(final_marks)
+        st.markdown("**Practical Component**")
+        lab_marks = st.number_input("Lab Marks (100)", 0, 100, key=f"tp_lab{i}")
 
-    st.write(f"**Final Marks:** {final_marks:.2f}")
-    st.write(f"**Grade:** {grade} | **Grade Point:** {gp}")
+        # Theory GP
+        if (s1 + s2) < 25:
+            theory_gp = 0
+        else:
+            _, gp_s1 = absolute_grade((s1 / 30) * 100)
+            _, gp_s2 = absolute_grade((s2 / 45) * 100)
+            _, gp_le = absolute_grade((le / 25) * 100)
+            theory_gp = (gp_s1 * 0.30) + (gp_s2 * 0.45) + (gp_le * 0.25)
+
+        # Practical GP
+        _, practical_gp = absolute_grade(lab_marks, is_practical=True)
+
+        if theory_gp == 0 or practical_gp == 0:
+            course_grade, course_gp = "F", 0
+        else:
+            final_gp = (theory_gp * 0.70) + (practical_gp * 0.30)
+            course_grade, course_gp = final_grade_from_wgp(final_gp)
+
+    st.info(f"**Grade:** {course_grade} | **Grade Point:** {course_gp}")
 
     total_credits += credits
-    total_weighted_points += credits * gp
+    total_weighted_points += credits * course_gp
+
+# ---------------- SGPA ----------------
 
 st.divider()
-
-# ---------- SGPA ----------
 if total_credits > 0:
     sgpa = total_weighted_points / total_credits
     st.success(f"🎯 **SGPA: {sgpa:.2f}**")
 
-# ---------- CGPA ----------
+# ---------------- CGPA ----------------
+
 st.divider()
 st.header("📊 CGPA Calculator")
 
