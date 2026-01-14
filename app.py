@@ -6,8 +6,7 @@ st.set_page_config(page_title="GITAM SGPA & CGPA Calculator", layout="centered")
 st.title("🎓 GITAM SGPA & CGPA Calculator")
 st.caption("Relative Grading | Evaluation Policy 2025–26")
 
-# ------------------ FINAL GRADE FROM WGP ------------------
-
+# -------- Final Grade from Weighted GP --------
 def final_grade_from_wgp(wgp):
     if wgp > 9:
         return "O", 10
@@ -26,9 +25,7 @@ def final_grade_from_wgp(wgp):
     else:
         return "F", 0
 
-
-# ------------------ COURSE INPUT ------------------
-
+# -------- Input --------
 num_courses = st.number_input("Number of Courses", min_value=1, step=1)
 
 courses = []
@@ -39,14 +36,13 @@ for i in range(int(num_courses)):
     st.subheader(f"📘 Course {i+1}")
 
     subject = st.text_input("Subject Name", key=f"name{i}")
+    credits = st.number_input("Credits", min_value=0.0, step=0.5, key=f"cred{i}")
 
     course_type = st.selectbox(
         "Course Type",
         ["Theory (T)", "Practical (P)", "Combined (TP)"],
         key=f"type{i}"
     )
-
-    credits = st.number_input("Credits", min_value=0.0, step=0.5, key=f"cred{i}")
 
     final_gp = 0
     final_grade = "F"
@@ -57,24 +53,28 @@ for i in range(int(num_courses)):
         gp_s2 = st.number_input("Sessional 2 Grade Point", 0.0, 10.0, step=0.1, key=f"s2{i}")
         gp_le = st.number_input("Learning Engagement Grade Point", 0.0, 10.0, step=0.1, key=f"le{i}")
 
-        wgp = (gp_s1 * 0.30) + (gp_s2 * 0.45) + (gp_le * 0.25)
-        final_grade, final_gp = final_grade_from_wgp(wgp)
+        theory_gp = (gp_s1 * 0.30) + (gp_s2 * 0.45) + (gp_le * 0.25)
+        final_grade, final_gp = final_grade_from_wgp(theory_gp)
 
     # -------- PRACTICAL --------
     elif course_type == "Practical (P)":
-        final_gp = st.number_input("Practical Grade Point", 0.0, 10.0, step=0.1, key=f"p{i}")
-        final_grade, final_gp = final_grade_from_wgp(final_gp)
+        practical_gp = st.number_input("Practical Grade Point", 0.0, 10.0, step=0.1, key=f"p{i}")
+        final_grade, final_gp = final_grade_from_wgp(practical_gp)
 
     # -------- COMBINED TP --------
     else:
-        st.markdown("**Theory Component (Weighted GP)**")
-        theory_gp = st.number_input("Theory Grade Point", 0.0, 10.0, step=0.1, key=f"tpgp{i}")
+        st.markdown("**Theory Component**")
+        gp_s1 = st.number_input("Sessional 1 Grade Point", 0.0, 10.0, step=0.1, key=f"tp_s1{i}")
+        gp_s2 = st.number_input("Sessional 2 Grade Point", 0.0, 10.0, step=0.1, key=f"tp_s2{i}")
+        gp_le = st.number_input("Learning Engagement Grade Point", 0.0, 10.0, step=0.1, key=f"tp_le{i}")
+
+        theory_gp = (gp_s1 * 0.30) + (gp_s2 * 0.45) + (gp_le * 0.25)
 
         st.markdown("**Practical Component**")
-        practical_gp = st.number_input("Practical Grade Point", 0.0, 10.0, step=0.1, key=f"tplab{i}")
+        practical_gp = st.number_input("Practical Grade Point", 0.0, 10.0, step=0.1, key=f"tp_p{i}")
 
-        combined_gp = (theory_gp * 0.70) + (practical_gp * 0.30)
-        final_grade, final_gp = final_grade_from_wgp(combined_gp)
+        final_gp_value = (theory_gp * 0.70) + (practical_gp * 0.30)
+        final_grade, final_gp = final_grade_from_wgp(final_gp_value)
 
     courses.append({
         "Subject": subject,
@@ -85,10 +85,9 @@ for i in range(int(num_courses)):
         "Weighted Points": round(final_gp * credits, 2)
     })
 
-# ------------------ RESULTS TABLE ------------------
-
+# -------- Results Table --------
 st.divider()
-st.header("📋 Semester Result Summary")
+st.header("📋 Semester Summary")
 
 if courses:
     df = pd.DataFrame(courses)
@@ -101,8 +100,7 @@ if courses:
         sgpa = total_points / total_credits
         st.success(f"🎯 **SGPA: {sgpa:.2f}**")
 
-# ------------------ CGPA ------------------
-
+# -------- CGPA --------
 st.divider()
 st.header("📊 CGPA Calculator")
 
